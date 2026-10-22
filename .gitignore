@@ -1,0 +1,21 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+.vite
+coverage
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+.idea
+.vscode/*
+!.vscode/extensions.json
+dev-dist
+package-lock.json.bak
+
+# Generated at build time from node_modules (large wasm binaries)
+public/ort/
