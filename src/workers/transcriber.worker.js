@@ -1,5 +1,5 @@
 /**
- * Whisper, off the main thread.
+ * Speech transcription, off the main thread.
  *
  * The main thread only has to decode a blob to 16 kHz mono Float32 and hand the
  * buffer over (transferred, not copied). Model download, chunking and inference

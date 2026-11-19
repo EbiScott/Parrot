@@ -54,7 +54,7 @@ function resampleLinear(input, fromRate, toRate) {
 
 /**
  * Decode any recorded/uploaded blob into mono Float32 at 16 kHz — the only
- * thing Whisper accepts.
+ * thing the speech model accepts.
  *
  * The decoding context is created at 16 kHz on purpose: the browser resamples
  * while decoding, which is faster and higher quality than doing it by hand.

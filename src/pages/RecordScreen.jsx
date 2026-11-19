@@ -199,7 +199,7 @@ export default function RecordScreen({ onDone }) {
       </div>
 
       <p className="fine-print">
-        Whisper runs locally. The first transcription downloads the model once.
+        Transcription runs locally. The first run downloads the model once.
         {busy ? ' Working…' : ''}
       </p>
     </section>

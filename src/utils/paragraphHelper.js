@@ -1,7 +1,7 @@
 /**
  * Turns a raw transcript into readable paragraphs.
  *
- * Whisper hands back one long run of text. Splitting on sentence boundaries and
+ * The speech model hands back one long run of text. Splitting on sentence boundaries and
  * grouping 3–4 sentences per paragraph is enough to make it scannable — no model
  * needed. The text itself is never altered: no spell-check, no grammar pass.
  */

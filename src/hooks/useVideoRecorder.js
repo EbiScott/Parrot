@@ -4,7 +4,7 @@ import { describeMediaError, pickMimeType } from '../utils/media'
 /**
  * Records the front camera and, in parallel, an audio-only copy of the same
  * microphone. The video blob is for playback; the audio blob is what gets
- * transcribed — Whisper only ever sees 16 kHz mono audio, never a video file.
+ * transcribed — the speech model only ever sees 16 kHz mono audio, never a video file.
  *
  * Returns { videoBlob, audioBlob, duration } on stop.
  */
