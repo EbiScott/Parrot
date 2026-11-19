@@ -6,6 +6,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.{js,jsx}'],
+    setupFiles: ['./src/test/setup.js'],
     globals: true,
     restoreMocks: true,
   },
