@@ -42,7 +42,13 @@ export default function App() {
   } else if (route.name === 'entry') {
     page = <EntryDetail id={route.id} onBack={() => go('/feed')} onOpen={(id) => go(`/entry/${id}`)} />
   } else {
-    page = <JournalFeed onRecord={() => go('/record')} onOpen={(id) => go(`/entry/${id}`)} />
+    page = (
+      <JournalFeed
+        onRecord={() => go('/record')}
+        onOpen={(id) => go(`/entry/${id}`)}
+        onSettings={() => go('/settings')}
+      />
+    )
   }
 
   return (

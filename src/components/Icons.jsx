@@ -108,6 +108,15 @@ export function SettingsIcon(props) {
   )
 }
 
+export function SearchIcon(props) {
+  return (
+    <Svg {...props}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M15.3 15.3L21 21" />
+    </Svg>
+  )
+}
+
 export function JournalIcon(props) {
   return (
     <Svg {...props}>

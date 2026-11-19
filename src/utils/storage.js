@@ -5,6 +5,7 @@
  * An entry looks like:
  *   {
  *     id:         number,   // epoch ms, also the primary key and the sort order
+ *     uuid:       string,   // stable identity for backups and imports
  *     type:       'audio' | 'video',
  *     title:      string,   // "Oct 17 2026 - 3:42 PM"
  *     audioBlob:  Blob,     // always present, even for video entries
@@ -12,11 +13,13 @@
  *     transcript: string,
  *     duration:   number,   // seconds
  *     createdAt:  number,   // epoch ms (same as id)
+ *     updatedAt:  number,
  *     status:     'recording' | 'transcribing' | 'done' | 'error'
  *   }
  */
 import { openDB } from 'idb'
 import { formatEntryTitle } from './formatters'
+import { newUuid } from './ids'
 
 const DB_NAME = 'parrot'
 const DB_VERSION = 1
@@ -65,6 +68,7 @@ export async function createEntry({
   const id = await nextId(db)
   const entry = {
     id,
+    uuid: newUuid(),
     type,
     title: formatEntryTitle(id),
     audioBlob,
@@ -72,6 +76,7 @@ export async function createEntry({
     transcript,
     duration,
     createdAt: id,
+    updatedAt: id,
     status,
   }
   await db.put(STORE, entry)
@@ -91,7 +96,14 @@ export async function updateEntry(id, patch) {
     await tx.done
     return null
   }
-  const updated = { ...existing, ...patch, id: existing.id, createdAt: existing.createdAt }
+  const updated = {
+    ...existing,
+    ...patch,
+    id: existing.id,
+    uuid: existing.uuid || newUuid(),
+    createdAt: existing.createdAt,
+    updatedAt: Date.now(),
+  }
   await tx.store.put(updated)
   await tx.done
   return updated
@@ -132,6 +144,22 @@ export async function getAllEntries() {
   return all.sort((a, b) => b.id - a.id)
 }
 
+export async function findEntries(predicate, { limit = 50 } = {}) {
+  const db = await getDB()
+  const tx = db.transaction(STORE)
+  const entries = []
+  let cursor = await tx.store.openCursor(null, 'prev')
+
+  while (cursor && entries.length < limit + 1) {
+    if (predicate(cursor.value)) entries.push(cursor.value)
+    cursor = await cursor.continue()
+  }
+  await tx.done
+
+  const hasMore = entries.length > limit
+  return { entries: hasMore ? entries.slice(0, limit) : entries, hasMore }
+}
+
 /** Entries that never finished transcribing — shown with a retry action. */
 export async function getIncompleteEntries() {
   const all = await getAllEntries()
@@ -141,6 +169,87 @@ export async function getIncompleteEntries() {
 export async function clearEntries() {
   const db = await getDB()
   await db.clear(STORE)
+}
+
+export async function ensureUuids() {
+  const db = await getDB()
+  const tx = db.transaction(STORE, 'readwrite')
+  let cursor = await tx.store.openCursor()
+
+  while (cursor) {
+    const entry = cursor.value
+    if (!entry.uuid) {
+      await cursor.update({
+        ...entry,
+        uuid: newUuid(),
+        updatedAt: entry.updatedAt || entry.createdAt || Date.now(),
+      })
+    }
+    cursor = await cursor.continue()
+  }
+
+  await tx.done
+}
+
+function nextAvailableId(preferred, used) {
+  let id = Number(preferred) || Date.now()
+  while (used.has(id)) id++
+  used.add(id)
+  return id
+}
+
+export async function importEntries(entries, { replace = false, onProgress } = {}) {
+  if (!Array.isArray(entries) || !entries.length) return { added: 0, skipped: 0 }
+
+  const db = await getDB()
+  const tx = db.transaction(STORE, 'readwrite')
+  const existing = await tx.store.getAll()
+
+  if (replace) await tx.store.clear()
+
+  const known = new Set()
+  const usedIds = new Set()
+
+  if (!replace) {
+    for (const entry of existing) {
+      const uuid = entry.uuid || newUuid()
+      if (!entry.uuid) await tx.store.put({ ...entry, uuid })
+      known.add(uuid)
+      usedIds.add(entry.id)
+    }
+  }
+
+  let added = 0
+  let skipped = 0
+
+  for (const source of entries) {
+    const uuid = typeof source.uuid === 'string' && source.uuid ? source.uuid : newUuid()
+    if (known.has(uuid)) {
+      skipped++
+      continue
+    }
+
+    const createdAt = Number(source.createdAt) || Date.now()
+    const id = nextAvailableId(createdAt, usedIds)
+    const entry = {
+      ...source,
+      id,
+      uuid,
+      createdAt,
+      updatedAt: Number(source.updatedAt) || createdAt,
+      title: source.title || formatEntryTitle(createdAt),
+      audioBlob: source.audioBlob || null,
+      videoBlob: source.videoBlob || null,
+    }
+
+    await tx.store.put(entry)
+    known.add(uuid)
+    added++
+    onProgress?.({ done: added, total: entries.length })
+  }
+
+  await tx.done
+  return { added, skipped }
 }
 
 export async function countEntries() {

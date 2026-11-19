@@ -5,8 +5,10 @@ import {
   countEntries,
   createEntry,
   deleteEntry,
+  findEntries,
   getEntry,
   getStorageUsage,
+  importEntries,
   listEntries,
   updateEntry,
 } from './storage'
@@ -23,6 +25,7 @@ describe('createEntry', () => {
     const entry = await createEntry({ type: 'audio', audioBlob: blobOf(), duration: 12 })
 
     expect(entry.id).toBeGreaterThan(0)
+    expect(entry.uuid).toMatch(/^[0-9a-f-]{36}$/)
     expect(entry.createdAt).toBe(entry.id)
     expect(entry.title).toMatch(/\w{3} \d{1,2} \d{4} - \d{1,2}:\d{2} (AM|PM)/)
     expect(entry.status).toBe('transcribing')
@@ -133,6 +136,76 @@ describe('deleteEntry / clearEntries', () => {
     await clearEntries()
 
     expect(await countEntries()).toBe(0)
+  })
+})
+
+describe('importEntries', () => {
+  const backupEntry = (uuid, createdAt, extra = {}) => ({
+    uuid,
+    type: 'audio',
+    title: `Entry ${uuid}`,
+    transcript: `Transcript ${uuid}`,
+    duration: 12,
+    createdAt,
+    updatedAt: createdAt,
+    status: 'done',
+    audioBlob: new Blob([uuid], { type: 'audio/webm' }),
+    videoBlob: null,
+    ...extra,
+  })
+
+  it('restores a backup with new local ids', async () => {
+    const result = await importEntries(
+      [backupEntry('one', 1000), backupEntry('two', 2000)],
+      { replace: true },
+    )
+
+    expect(result).toEqual({ added: 2, skipped: 0 })
+    const { entries } = await listEntries()
+    expect(entries.map((entry) => entry.uuid)).toEqual(['two', 'one'])
+    expect(entries[0].audioBlob).toBeDefined()
+    expect(entries[0].transcript).toBe('Transcript two')
+  })
+
+  it('merges new entries and skips matching uuids', async () => {
+    await importEntries(
+      [backupEntry('one', 1000), backupEntry('two', 2000)],
+      { replace: true },
+    )
+
+    const result = await importEntries([
+      backupEntry('two', 2000),
+      backupEntry('three', 3000),
+    ])
+
+    expect(result).toEqual({ added: 1, skipped: 1 })
+    expect(await countEntries()).toBe(3)
+  })
+
+  it('moves colliding timestamps forward without overwriting', async () => {
+    await importEntries([backupEntry('one', 5000)], { replace: true })
+    await importEntries([backupEntry('two', 5000)])
+
+    const { entries } = await listEntries()
+    expect(entries).toHaveLength(2)
+    expect(new Set(entries.map((entry) => entry.id)).size).toBe(2)
+  })
+})
+
+describe('findEntries', () => {
+  it('returns matching entries newest first and caps the result', async () => {
+    await createEntry({ type: 'audio', audioBlob: blobOf() })
+    await createEntry({ type: 'audio', audioBlob: blobOf(), transcript: 'river walk' })
+    await createEntry({ type: 'audio', audioBlob: blobOf() })
+
+    const result = await findEntries((entry) => entry.transcript === 'river walk')
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].transcript).toBe('river walk')
+    expect(result.hasMore).toBe(false)
+
+    const limited = await findEntries(() => true, { limit: 2 })
+    expect(limited.entries).toHaveLength(2)
+    expect(limited.hasMore).toBe(true)
   })
 })
 

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import BackupCard from '../components/BackupCard'
+import InstallCard from '../components/InstallCard'
 import { useTranscriber } from '../hooks/useTranscriber'
 import { clearEntries, countEntries, getQuotaEstimate, getStorageUsage } from '../utils/storage'
 import { formatFileSize } from '../utils/formatters'
@@ -56,6 +58,8 @@ export default function Settings() {
         <p className="page-sub">Everything here is local. Nothing is uploaded.</p>
       </header>
 
+      <InstallCard />
+
       <div className="settings-card">
         <div className="settings-card__head">
           <h2>Journal storage</h2>
@@ -71,6 +75,8 @@ export default function Settings() {
           <button type="button" className="btn btn--danger" onClick={clearAll}>Delete all entries</button>
         </div>
       </div>
+
+      <BackupCard onChanged={load} />
 
       <div className="settings-card">
         <div className="settings-card__head">
