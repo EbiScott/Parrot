@@ -6,6 +6,7 @@ import { ChevronLeftIcon, CopyIcon, ShareIcon, TrashIcon } from '../components/I
 import { useTranscriber } from '../hooks/useTranscriber'
 import { deleteEntry, getEntry, updateEntry } from '../utils/storage'
 import { labelForBlob } from '../utils/media'
+import { downloadOptions } from '../utils/download'
 import { formatDuration } from '../utils/formatters'
 import { transcribeEntry } from '../utils/journal'
 
@@ -87,12 +88,12 @@ export default function EntryDetail({ id, onBack }) {
     onBack()
   }
 
-  const download = () => {
-    if (!entry?.audioBlob) return
-    const url = URL.createObjectURL(entry.audioBlob)
+  const download = (blob, kind) => {
+    if (!entry || !blob) return
+    const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = labelForBlob(entry.audioBlob, `parrot-${entry.id}`)
+    link.download = labelForBlob(blob, `parrot-${kind}-${entry.id}`)
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
@@ -115,6 +116,7 @@ export default function EntryDetail({ id, onBack }) {
     0,
     Math.min(100, Math.round(transcriber.modelProgress < 1 ? transcriber.modelProgress * 100 : transcriber.progress * 100)),
   )
+  const downloads = downloadOptions(entry)
 
   return (
     <section className="page detail-page">
@@ -182,9 +184,16 @@ export default function EntryDetail({ id, onBack }) {
         <button type="button" className="btn btn--line" onClick={share} disabled={!entry.transcript}>
           <ShareIcon size={16} /> Share
         </button>
-        <button type="button" className="btn btn--line" onClick={download}>
-          Download audio
-        </button>
+        {downloads.map((option) => (
+          <button
+            key={option.kind}
+            type="button"
+            className="btn btn--line"
+            onClick={() => download(option.blob, option.kind)}
+          >
+            {option.label}
+          </button>
+        ))}
         <button type="button" className="btn btn--danger" onClick={remove}>
           <TrashIcon size={16} /> Delete
         </button>

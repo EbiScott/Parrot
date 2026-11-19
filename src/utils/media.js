@@ -30,7 +30,7 @@ export function pickMimeType(kind = 'audio') {
 export function extensionForMime(mime = '') {
   if (mime.includes('webm')) return 'webm'
   if (mime.includes('ogg')) return 'ogg'
-  if (mime.includes('mp4')) return 'm4a'
+  if (mime.includes('mp4')) return mime.startsWith('video/') ? 'mp4' : 'm4a'
   return 'bin'
 }
 
