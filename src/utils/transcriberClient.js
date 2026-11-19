@@ -55,10 +55,11 @@ function ensureWorker() {
     switch (data.type) {
       case 'status':
         if (data.phase === 'model') {
+          const progress = data.progress ?? 1
           setState({
-            phase: state.phase === 'idle' ? 'model' : state.phase,
-            modelProgress: data.progress ?? 1,
-            modelReady: (data.progress ?? 1) >= 1,
+            phase: progress >= 1 && !pending && state.phase === 'model' ? 'idle' : state.phase,
+            modelProgress: progress,
+            modelReady: progress >= 1,
           })
         } else if (data.phase === 'warming') {
           setState({ phase: 'warming' })

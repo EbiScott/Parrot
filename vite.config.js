@@ -32,7 +32,16 @@ export default defineConfig({
         // Anything that is not the app shell: cache on first use, then serve offline forever.
         runtimeCaching: [
           {
-            // ONNX Runtime wasm binaries (fetched from jsDelivr by @xenova/transformers).
+            // ONNX Runtime wasm binaries are served from this origin by scripts/copy-onnx.mjs.
+            urlPattern: /\/ort\/.*\.wasm$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'parrot-ort',
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*\.(wasm|mjs)$/i,
             handler: 'CacheFirst',
             options: {
