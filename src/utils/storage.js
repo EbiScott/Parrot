@@ -11,6 +11,7 @@
  *     audioBlob:  Blob,     // always present, even for video entries
  *     videoBlob:  Blob | null,
  *     transcript: string,
+ *     captions:   Array,    // [{ start, end, text }] in seconds
  *     duration:   number,   // seconds
  *     createdAt:  number,   // epoch ms (same as id)
  *     updatedAt:  number,
@@ -74,6 +75,7 @@ export async function createEntry({
     audioBlob,
     videoBlob,
     transcript,
+    captions: [],
     duration,
     createdAt: id,
     updatedAt: id,

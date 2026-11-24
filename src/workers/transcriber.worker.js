@@ -8,6 +8,7 @@
 import { env, pipeline } from '@xenova/transformers'
 import { CHUNK_SECONDS, MODEL_ID, SAMPLE_RATE } from '../constants'
 import { splitIntoChunks } from '../utils/audioChunks'
+import { cuesFromModelOutput } from '../utils/subtitles'
 
 // Only fetch model files from the Hub; there are no local model files to try.
 env.allowLocalModels = false
@@ -99,11 +100,13 @@ async function transcribe({ samples }) {
   })
 
   if (!chunks.length) {
-    post({ type: 'done', text: '' })
+    post({ type: 'done', text: '', captions: [] })
     return
   }
 
   let text = ''
+  let offset = 0
+  const captions = []
 
   for (let i = 0; i < chunks.length; i++) {
     post({
@@ -114,13 +117,21 @@ async function transcribe({ samples }) {
       chunks: chunks.length,
     })
 
-    const output = await transcriber(chunks[i], { sampling_rate: SAMPLE_RATE })
+    const chunk = chunks[i]
+    const chunkSeconds = chunk.length / SAMPLE_RATE
+    const output = await transcriber(chunk, {
+      sampling_rate: SAMPLE_RATE,
+      return_timestamps: true,
+    })
     const piece = (output?.text || '').trim()
 
     if (piece) {
       text = text ? `${text} ${piece}` : piece
       post({ type: 'partial', text })
     }
+
+    captions.push(...cuesFromModelOutput(output, offset, chunkSeconds))
+    offset += chunkSeconds
 
     post({
       type: 'status',
@@ -131,7 +142,7 @@ async function transcribe({ samples }) {
     })
   }
 
-  post({ type: 'done', text: text.trim() })
+  post({ type: 'done', text: text.trim(), captions })
 }
 
 async function resetModel() {

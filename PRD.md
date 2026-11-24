@@ -11,7 +11,8 @@ Hosted at https://parrot-jet.vercel.app.
 ## Release 1.0
 
 - Audio and video recording, upload, drag-drop and paste.
-- On-device speech transcription with paragraphing and editing.
+- On-device speech transcription with paragraphing, editing and timed captions.
+- Downloadable `.srt` and `.vtt` subtitle files for transcribed audio and video.
 - Newest-first journal with pagination and transcript/title search.
 - Entry playback, transcript copy/share, audio download and video download when a video exists.
 - Installable PWA with a home-screen button and platform instructions.

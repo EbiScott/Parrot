@@ -15,6 +15,7 @@ function entry(overrides = {}) {
     type: 'audio',
     title: 'Oct 17 2026 - 3:42 PM',
     transcript: 'A quiet thought.',
+    captions: [{ start: 0, end: 1.2, text: 'A quiet thought.' }],
     duration: 154,
     createdAt: 1760690000000,
     updatedAt: 1760690001000,
@@ -54,6 +55,7 @@ describe('encrypted backups', () => {
       uuid: 'entry-one',
       type: 'audio',
       transcript: 'A quiet thought.',
+      captions: [{ start: 0, end: 1.2, text: 'A quiet thought.' }],
       duration: 154,
       status: 'done',
     })

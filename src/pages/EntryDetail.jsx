@@ -81,6 +81,14 @@ export default function EntryDetail({ id, onBack }) {
     }
   }
 
+  const addSubtitles = () => {
+    if (!entry || transcriber.isTranscribing) return
+    const confirmed = window.confirm(
+      'Add timed subtitles? This re-runs the local model and replaces the current transcript.',
+    )
+    if (confirmed) retry()
+  }
+
   const remove = async () => {
     if (!entry) return
     if (!window.confirm('Delete this entry? This cannot be undone.')) return
@@ -88,12 +96,13 @@ export default function EntryDetail({ id, onBack }) {
     onBack()
   }
 
-  const download = (blob, kind) => {
-    if (!entry || !blob) return
-    const url = URL.createObjectURL(blob)
+  const download = (option) => {
+    if (!entry || !option?.blob) return
+    const url = URL.createObjectURL(option.blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = labelForBlob(blob, `parrot-${kind}-${entry.id}`)
+    link.download =
+      option.filename || labelForBlob(option.blob, `parrot-${option.kind}-${entry.id}`)
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
@@ -135,7 +144,9 @@ export default function EntryDetail({ id, onBack }) {
         <span className={`status status--${entry.status}`}>{entry.status}</span>
       </header>
 
-      {entry.type === 'video' ? <VideoPlayer blob={entry.videoBlob} /> : null}
+      {entry.type === 'video' ? (
+        <VideoPlayer blob={entry.videoBlob} captions={entry.captions} />
+      ) : null}
       <AudioPlayer blob={entry.audioBlob} duration={entry.duration} />
 
       {isTranscribing ? (
@@ -149,12 +160,23 @@ export default function EntryDetail({ id, onBack }) {
         </div>
       ) : null}
 
+      {entry.status === 'error' && entry.error ? (
+        <p className="notice notice--error">{entry.error}</p>
+      ) : null}
+
       <div className="transcript-card">
         <div className="transcript-card__head">
           <h2>Transcript</h2>
           <div className="transcript-card__actions">
             {entry.status === 'error' ? (
               <button type="button" className="btn btn--line" onClick={retry}>Retry</button>
+            ) : null}
+            {entry.status === 'done' &&
+            !entry.captions?.length &&
+            !transcriber.isTranscribing ? (
+              <button type="button" className="btn btn--line" onClick={addSubtitles}>
+                Add subtitles
+              </button>
             ) : null}
             {editing ? (
               <>
@@ -189,7 +211,7 @@ export default function EntryDetail({ id, onBack }) {
             key={option.kind}
             type="button"
             className="btn btn--line"
-            onClick={() => download(option.blob, option.kind)}
+            onClick={() => download(option)}
           >
             {option.label}
           </button>

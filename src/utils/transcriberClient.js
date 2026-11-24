@@ -15,6 +15,7 @@ const initialState = {
   chunk: 0,
   chunks: 0,
   partial: '',
+  captions: [],
   error: null,
 }
 
@@ -22,6 +23,8 @@ let state = initialState
 let worker = null
 let pending = null
 let resetJob = null
+let activeJob = null
+const queue = []
 const listeners = new Set()
 
 function setState(patch) {
@@ -79,8 +82,9 @@ function ensureWorker() {
 
       case 'done': {
         const text = (data.text || '').trim()
-        setState({ phase: 'done', progress: 1, partial: text })
-        pending?.resolve(text)
+        const captions = Array.isArray(data.captions) ? data.captions : []
+        setState({ phase: 'done', progress: 1, partial: text, captions })
+        pending?.resolve({ text, captions })
         pending = null
         break
       }
@@ -115,45 +119,63 @@ function fail(message) {
   resetJob = null
 }
 
-/** Transcribe an audio (or video-with-audio) blob. Returns the raw text. */
-export async function transcribe(blob) {
-  if (pending) throw new Error('A transcription is already running.')
-
+async function runTranscription(blob) {
   setState({
     phase: 'decoding',
     error: null,
     partial: '',
+    captions: [],
     progress: 0,
     chunk: 0,
     chunks: 0,
   })
 
-  let samples
   try {
-    const decoded = await decodeToMono16k(blob)
-    samples = decoded.samples
-  } catch (err) {
-    fail(err.message || 'That audio could not be read.')
-    throw err
+    const { samples } = await decodeToMono16k(blob)
+    if (!samples.length) throw new Error('The recording was empty.')
+
+    const workerInstance = ensureWorker()
+    setState({ phase: state.modelReady ? 'warming' : 'model' })
+
+    // Transfer the buffer instead of copying it — a 10 minute recording is ~38 MB.
+    const owned =
+      samples.byteOffset === 0 && samples.byteLength === samples.buffer.byteLength
+        ? samples
+        : samples.slice()
+
+    return await new Promise((resolve, reject) => {
+      pending = { resolve, reject }
+      workerInstance.postMessage({ type: 'transcribe', samples: owned }, [owned.buffer])
+    })
+  } catch (error) {
+    if (state.phase !== 'error') {
+      fail(error?.message || 'That audio could not be read.')
+    }
+    throw error
   }
+}
 
-  if (!samples.length) {
-    fail('The recording was empty.')
-    throw new Error('The recording was empty.')
-  }
+function drainQueue() {
+  if (activeJob || !queue.length) return
 
-  const workerInstance = ensureWorker()
-  setState({ phase: state.modelReady ? 'warming' : 'model' })
+  activeJob = queue.shift()
+  runTranscription(activeJob.blob)
+    .then(activeJob.resolve, activeJob.reject)
+    .finally(() => {
+      activeJob = null
+      drainQueue()
+    })
+}
 
-  // Transfer the buffer instead of copying it — a 10 minute recording is ~38 MB.
-  const owned =
-    samples.byteOffset === 0 && samples.byteLength === samples.buffer.byteLength
-      ? samples
-      : samples.slice()
-
+/**
+ * Transcribe an audio (or video-with-audio) blob. Returns the raw text and
+ * timed caption cues. Jobs are queued so importing or recording a second file
+ * cannot cancel the first transcription with an "already running" error.
+ */
+export function transcribe(blob) {
   return new Promise((resolve, reject) => {
-    pending = { resolve, reject }
-    workerInstance.postMessage({ type: 'transcribe', samples: owned }, [owned.buffer])
+    queue.push({ blob, resolve, reject })
+    drainQueue()
   })
 }
 

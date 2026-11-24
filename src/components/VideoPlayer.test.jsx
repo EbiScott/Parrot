@@ -19,4 +19,22 @@ describe('VideoPlayer', () => {
     const { container } = render(<VideoPlayer blob={null} />)
     expect(container.querySelector('video')).not.toBeInTheDocument()
   })
+
+  it('attaches timed captions and offers a toggle', () => {
+    const { container } = render(
+      <VideoPlayer
+        blob={new Blob(['v'], { type: 'video/webm' })}
+        captions={[{ start: 0, end: 1.5, text: 'A spoken line.' }]}
+      />,
+    )
+
+    expect(container.querySelector('track')).toHaveAttribute('kind', 'captions')
+    expect(container.querySelector('track')).toHaveAttribute('srclang', 'en')
+    expect(screen.getByRole('button', { name: /turn off captions/i })).toBeInTheDocument()
+  })
+
+  it('does not offer captions without cues', () => {
+    render(<VideoPlayer blob={new Blob(['v'], { type: 'video/webm' })} captions={[]} />)
+    expect(screen.queryByRole('button', { name: /captions/i })).not.toBeInTheDocument()
+  })
 })

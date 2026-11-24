@@ -28,4 +28,18 @@ describe('downloadOptions', () => {
     expect(downloadOptions({ type: 'text', audioBlob: null, videoBlob: null })).toEqual([])
     expect(downloadOptions(null)).toEqual([])
   })
+
+  test('offers SRT and VTT when timed captions exist', () => {
+    const options = downloadOptions({
+      id: 42,
+      type: 'video',
+      audioBlob: audio,
+      videoBlob: video,
+      captions: [{ start: 0, end: 1.5, text: 'Hello.' }],
+    })
+
+    expect(options.map((option) => option.kind)).toEqual(['audio', 'video', 'srt', 'vtt'])
+    expect(options[2].filename).toBe('parrot-video-42.srt')
+    expect(options[3].filename).toBe('parrot-video-42.vtt')
+  })
 })

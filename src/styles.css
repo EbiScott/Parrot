@@ -573,12 +573,37 @@ h2 {
 .status--error { color: #ff9b8b; border-color: #55302b; }
 .status--transcribing { color: var(--amber); border-color: #5c4a25; }
 
+.video-player-wrap {
+  margin-bottom: 1rem;
+}
+
 .video-player {
+  display: block;
   width: 100%;
   max-height: 55vh;
   border-radius: var(--radius);
   background: #000;
-  margin-bottom: 1rem;
+}
+
+.video-player__bar {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.4rem;
+}
+
+.video-player__cc {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.video-player__cc[aria-pressed='true'] {
+  color: var(--accent);
 }
 
 .audio-player {
