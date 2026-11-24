@@ -1,9 +1,48 @@
 import { SAMPLE_RATE } from '../constants'
 
-function getOfflineContext(length, sampleRate) {
+function createStandaloneOfflineContext() {
   const Ctor = window.OfflineAudioContext || window.webkitOfflineAudioContext
   if (!Ctor) throw new Error('This browser cannot decode audio.')
-  return new Ctor(1, length, sampleRate)
+  return new Ctor(1, 1, 44100)
+}
+
+function createLiveContext() {
+  const Ctor = window.AudioContext || window.webkitAudioContext
+  if (!Ctor) throw new Error('This browser cannot decode audio.')
+  return new Ctor()
+}
+
+function closeContext(context) {
+  try {
+    const closing = context?.close?.()
+    if (closing?.catch) closing.catch(() => {})
+  } catch {
+    // A context that refuses to close is already gone or unusable.
+  }
+}
+
+/**
+ * Decode at a standard rate first, then resample ourselves. Decoding straight
+ * into a 16 kHz context fails on some Safari/WebView builds and on a few
+ * uploaded AAC containers even when normal playback works.
+ */
+async function decodeArrayBuffer(arrayBuffer) {
+  const attempts = [createStandaloneOfflineContext, createLiveContext]
+  let lastError = null
+
+  for (const createContext of attempts) {
+    let context = null
+    try {
+      context = createContext()
+      return await decodeCompat(context, arrayBuffer.slice(0))
+    } catch (err) {
+      lastError = err
+    } finally {
+      closeContext(context)
+    }
+  }
+
+  throw lastError || new Error('This browser cannot decode audio.')
 }
 
 /** Safari versions differ on whether decodeAudioData returns a promise. */
@@ -56,21 +95,21 @@ function resampleLinear(input, fromRate, toRate) {
  * Decode any recorded/uploaded blob into mono Float32 at 16 kHz — the only
  * thing the speech model accepts.
  *
- * The decoding context is created at 16 kHz on purpose: the browser resamples
- * while decoding, which is faster and higher quality than doing it by hand.
+ * Decoding happens at a standard browser rate, then the samples are downmixed
+ * and resampled by hand. That avoids device-specific failures when a context is
+ * created directly at 16 kHz.
  */
 export async function decodeToMono16k(blob) {
   if (!blob || !blob.size) throw new Error('That file is empty.')
 
   const arrayBuffer = await blob.arrayBuffer()
-  const context = getOfflineContext(1, SAMPLE_RATE)
 
   let buffer
   try {
-    buffer = await decodeCompat(context, arrayBuffer)
+    buffer = await decodeArrayBuffer(arrayBuffer)
   } catch {
     throw new Error(
-      'This audio could not be decoded. The format may not be supported on this device.',
+      'This audio could not be decoded. Try WAV, MP3 or M4A, or play it once in a media player and upload again.',
     )
   }
 
@@ -104,14 +143,23 @@ export function probeDuration(blob, kind = 'audio') {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob)
     const el = document.createElement(kind === 'video' ? 'video' : 'audio')
+    let settled = false
+    let timer = null
+
     el.preload = 'metadata'
 
     const done = (value) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
       URL.revokeObjectURL(url)
       el.removeAttribute('src')
       resolve(Number.isFinite(value) && value > 0 ? value : 0)
     }
 
+    // Some mobile browsers never fire metadata events for a detached element.
+    // Duration is optional, so do not let a probe block the import.
+    timer = setTimeout(() => done(0), 5000)
     el.onloadedmetadata = () => done(el.duration)
     el.onerror = () => done(0)
     el.src = url
