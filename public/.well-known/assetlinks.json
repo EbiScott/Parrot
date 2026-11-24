@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.parrot.journal",
+      "sha256_cert_fingerprints": [
+        "7D:E3:57:03:27:30:07:CB:C2:55:DF:7A:D9:B2:80:ED:92:14:1C:4B:71:C0:AF:8C:3E:41:41:D0:D7:5D:2F:CD"
+      ]
+    }
+  }
+]

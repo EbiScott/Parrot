@@ -19,3 +19,6 @@ package-lock.json.bak
 
 # Generated at build time from node_modules (large wasm binaries)
 public/ort/
+
+# Locally generated Android package and signing material
+android-package/
